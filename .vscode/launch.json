@@ -5,7 +5,7 @@
       "name": "Run Forge Agent",
       "type": "extensionHost",
       "request": "launch",
-      "args": ["--extensionDevelopmentPath=${workspaceFolder}"],
+      "args": ["${workspaceFolder}", "--profile-temp", "--extensionDevelopmentPath=${workspaceFolder}"],
       "outFiles": ["${workspaceFolder}/**/*.js"]
     }
   ]

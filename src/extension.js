@@ -1,16 +1,68 @@
 const vscode = require('vscode');
 const path = require('path');
 const fs = require('fs/promises');
+const crypto = require('crypto');
+const { createTemporaryMcpBridge, registerTemporaryBridge } = require('./temp-mcp-bridge');
 const SYSTEM_INSTRUCTIONS = `You are Forge Agent, a coding assistant working in the user's VS Code workspace. Use only MCP tools configured on your TrueForge agent for workspace inspection; do not claim to inspect files unless tools returned them. Never write files directly. When changes are needed, return a JSON proposal with shape {"proposalId":"unique-id","files":[{"path":"relative/path","operation":"modify","originalContent":"old","proposedContent":"new","reason":"why"}]}. Keep answers concise.`;
+let temporaryBridge;
+let bridgeToken;
+let bridgeReady = Promise.resolve();
+let bridgeSetupPromise;
 
 function activate(context) {
   context.subscriptions.push(
     vscode.commands.registerCommand('forgeAgent.openChat', () => openChat(context)),
+    vscode.commands.registerCommand('forgeAgent.connectTemporaryMcpBridge', async () => {
+      bridgeReady = connectTemporaryBridge(context);
+      try { await bridgeReady; vscode.window.showInformationMessage('Temporary workspace tools are connected to the saved TrueForge agent.'); }
+      catch (error) { vscode.window.showErrorMessage(`Temporary MCP bridge: ${error.message || error}`); }
+    }),
     vscode.commands.registerCommand('forgeAgent.reviewProposal', async () => {
       const input = await vscode.window.showInputBox({ prompt: 'Paste the complete proposal JSON from Forge Agent', placeHolder: '{"proposalId":"...","files":[...]}' });
       if (input) await reviewProposal(input);
     })
   );
+  context.subscriptions.push({ dispose: () => { if (temporaryBridge) temporaryBridge.close(); temporaryBridge = undefined; } });
+  bridgeReady = connectTemporaryBridge(context);
+  bridgeReady.catch(error => vscode.window.showWarningMessage(`Forge Agent workspace tools could not connect: ${error.message || error}. Run “Forge Agent: Connect Temporary MCP Bridge” to retry.`));
+}
+
+function connectTemporaryBridge(context) {
+  if (!bridgeSetupPromise) bridgeSetupPromise = setupTemporaryBridge(context).finally(() => { bridgeSetupPromise = undefined; });
+  return bridgeSetupPromise;
+}
+
+async function setupTemporaryBridge(context) {
+  if (!vscode.workspace.workspaceFolders?.length) throw new Error('Open a workspace folder before connecting the temporary workspace tools.');
+  if (!temporaryBridge) {
+    bridgeToken = await context.secrets.get('forgeAgent.temporaryMcpBearerToken');
+    if (!bridgeToken) {
+      bridgeToken = crypto.randomBytes(32).toString('hex');
+      await context.secrets.store('forgeAgent.temporaryMcpBearerToken', bridgeToken);
+    }
+    temporaryBridge = await createTemporaryMcpBridge({
+      workspaceRoot: async () => vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+      token: bridgeToken,
+      port: 0
+    });
+  }
+
+  const cfg = vscode.workspace.getConfiguration('forgeAgent');
+  const agentName = cfg.get('agentName');
+  if (!agentName) throw new Error('Set forgeAgent.agentName to the saved TrueForge agent to update.');
+  const options = { baseUrl: cfg.get('baseUrl'), timeoutInSeconds: 30 };
+  const trueForgeToken = cfg.get('token'); if (trueForgeToken) options.token = trueForgeToken;
+  const { TrueForge } = await import('@truefoundry/trueforge-sdk');
+  const client = new TrueForge(options);
+
+  try {
+    await registerTemporaryBridge({ client, url: temporaryBridge.url, token: bridgeToken, agentName });
+  } catch (error) {
+    const details = error.body?.error?.message || error.message || '';
+    if (/Outbound URL blocked/i.test(details)) throw new Error('TrueForge blocked the local MCP URL. Add 127.0.0.1 to OUTBOUND_URL_ALLOWED_HOSTS and restart TrueForge before retrying.');
+    throw error;
+  }
+  return temporaryBridge.url;
 }
 
 function openChat(context) {
@@ -42,6 +94,7 @@ function openChat(context) {
     let responseText = '';
     panel.webview.postMessage({ type: 'state', busy: true });
     try {
+      await bridgeReady;
       const client = await getClient();
       if (!sessionId) {
         const cfg = vscode.workspace.getConfiguration('forgeAgent');

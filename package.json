@@ -4,21 +4,61 @@
   "description": "A lightweight VS Code coding agent powered by TrueForge.",
   "version": "0.1.0",
   "publisher": "hardik-sharma-1005",
-  "engines": { "vscode": "^1.85.0" },
-  "categories": ["Other"],
-  "activationEvents": ["onCommand:forgeAgent.openChat", "onCommand:forgeAgent.reviewProposal"],
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:forgeAgent.openChat",
+    "onCommand:forgeAgent.connectTemporaryMcpBridge",
+    "onCommand:forgeAgent.reviewProposal"
+  ],
   "main": "./src/extension.js",
-  "scripts": { "check": "node --check src/extension.js" },
-  "dependencies": { "@truefoundry/trueforge-sdk": "*" },
+  "scripts": {
+    "check": "node --check src/extension.js && node --check src/temp-mcp-bridge.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@truefoundry/trueforge-sdk": "*",
+    "zod": "^4.6.7"
+  },
   "contributes": {
     "commands": [
-      { "command": "forgeAgent.openChat", "title": "Forge Agent: Open Chat" },
-      { "command": "forgeAgent.reviewProposal", "title": "Forge Agent: Review Edit Proposal" }
+      {
+        "command": "forgeAgent.openChat",
+        "title": "Forge Agent: Open Chat"
+      },
+      {
+        "command": "forgeAgent.connectTemporaryMcpBridge",
+        "title": "Forge Agent: Connect Temporary MCP Bridge"
+      },
+      {
+        "command": "forgeAgent.reviewProposal",
+        "title": "Forge Agent: Review Edit Proposal"
+      }
     ],
-    "configuration": { "title": "Forge Agent", "properties": {
-      "forgeAgent.baseUrl": { "type": "string", "default": "http://localhost:8790", "description": "TrueForge server URL." },
-      "forgeAgent.agentName": { "type": "string", "default": "", "description": "Name of the saved TrueForge agent configured with the MCP workspace server." },
-      "forgeAgent.token": { "type": "string", "default": "", "scope": "machine-overridable", "description": "Optional TrueForge bearer token for authenticated servers." }
-    }}
+    "configuration": {
+      "title": "Forge Agent",
+      "properties": {
+        "forgeAgent.baseUrl": {
+          "type": "string",
+          "default": "http://localhost:8790",
+          "description": "TrueForge server URL."
+        },
+        "forgeAgent.agentName": {
+          "type": "string",
+          "default": "forge-agent",
+          "description": "Name of the saved TrueForge agent configured with the MCP workspace server."
+        },
+        "forgeAgent.token": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "description": "Optional TrueForge bearer token for authenticated servers."
+        }
+      }
+    }
   }
 }
