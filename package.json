@@ -11,9 +11,9 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:forgeAgent.openChat",
-    "onCommand:forgeAgent.connectTemporaryMcpBridge",
-    "onCommand:forgeAgent.reviewProposal"
+    
+    
+    
   ],
   "main": "./src/extension.js",
   "scripts": {
