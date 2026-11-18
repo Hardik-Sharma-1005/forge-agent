@@ -4,7 +4,7 @@
     {
       "label": "Open Live Server in Browser",
       "type": "shell",
-      "command": "start http://127.0.0.1:8765/?token=d44aaa62923276a67ed613bdbbe4b7fa070ca6150c6cf32d98662f5864bb5a06",
+      "command": "npm run browse",
       "problemMatcher": [],
       "presentation": {
         "reveal": "never"

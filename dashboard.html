@@ -96,7 +96,12 @@
   </div>
 
   <script>
-    const TOKEN = "d44aaa62923276a67ed613bdbbe4b7fa070ca6150c6cf32d98662f5864bb5a06";
+    const urlParams = new URLSearchParams(window.location.search);
+    let TOKEN = urlParams.get('token') || localStorage.getItem('forge_mcp_token') || '';
+    if (!TOKEN) {
+      TOKEN = prompt('Enter your Forge Agent MCP Bearer token:') || '';
+      if (TOKEN) localStorage.setItem('forge_mcp_token', TOKEN.trim());
+    }
     const URL = "http://127.0.0.1:8765/mcp";
 
     async function pingServer() {

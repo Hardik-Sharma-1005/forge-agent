@@ -237,3 +237,156 @@ node --test tests/stability.test.js
 | "TrueForge blocked the local MCP URL" | Outbound host restriction in TrueForge | Set `$env:OUTBOUND_URL_ALLOWED_HOSTS = '["127.0.0.1"]'` and restart TrueForge. |
 | Tool returns "This generated or sensitive path is excluded" | Attempt to access `.env`, `.git`, or key files | By design, sensitive and generated directories are completely inaccessible. |
 | Tool returns "File exceeds the 1 MiB read limit" | File is too large | Break the file into smaller modules or use targeted search queries instead. |
+
+---
+
+## 11. MCP Tool Contract & Reference
+
+All tools return standard MCP text content results with JSON-serialized payload strings:
+`{ "content": [{ "type": "text", "text": "<JSON_STRING>" }] }`
+
+### 1. `get_workspace_context`
+- **Description**: Return useful workspace information including name, root, top-level visible items, detected configuration files, and source file types.
+- **Input Schema**: `{}` (No arguments)
+- **Output Structure**:
+  ```json
+  {
+    "name": "string",
+    "root": "string",
+    "topLevel": ["string"],
+    "availableTools": ["string"],
+    "configFiles": ["string"],
+    "sourceTypes": ["string"],
+    "structureSummary": {
+      "totalTopLevelEntries": "number",
+      "directories": "number",
+      "files": "number"
+    }
+  }
+  ```
+- **Example Request**:
+  ```json
+  { "jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": { "name": "get_workspace_context", "arguments": {} } }
+  ```
+- **Example Response**:
+  ```json
+  {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {
+      "content": [{
+        "type": "text",
+        "text": "{\"name\":\"forge-agent\",\"root\":\"C:\\\\projects\\\\forge-agent\",\"topLevel\":[\"package.json\",\"src/\"],\"availableTools\":[\"get_workspace_context\",\"list_files\",\"read_file\",\"search_files\"],\"configFiles\":[\"package.json\"],\"sourceTypes\":[\".js\",\".json\"],\"structureSummary\":{\"totalTopLevelEntries\":2,\"directories\":1,\"files\":1}}"
+      }]
+    }
+  }
+  ```
+
+### 2. `list_files`
+- **Description**: List relative workspace paths, excluding generated folders and sensitive files.
+- **Input Schema**:
+  ```json
+  {
+    "path": { "type": "string", "optional": true, "description": "Workspace-relative directory to list (default: root)" },
+    "recursive": { "type": "boolean", "default": true, "description": "Whether to descend into subdirectories" },
+    "max_results": { "type": "integer", "min": 1, "max": 500, "default": 200, "description": "Maximum entries to return" }
+  }
+  ```
+- **Output Structure**:
+  ```json
+  {
+    "files": ["string"],
+    "truncated": "boolean"
+  }
+  ```
+- **Example Request**:
+  ```json
+  { "jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": { "name": "list_files", "arguments": { "path": "src", "recursive": false } } }
+  ```
+- **Example Response**:
+  ```json
+  {
+    "jsonrpc": "2.0",
+    "id": 2,
+    "result": {
+      "content": [{
+        "type": "text",
+        "text": "{\"files\":[\"src/server.js\",\"src/security.js\",\"src/tools.js\"],\"truncated\":false}"
+      }]
+    }
+  }
+  ```
+
+### 3. `read_file`
+- **Description**: Read a UTF-8 text file inside the active workspace (up to 1 MiB).
+- **Input Schema**:
+  ```json
+  {
+    "path": { "type": "string", "description": "Workspace-relative file path" }
+  }
+  ```
+- **Output Structure**:
+  ```json
+  {
+    "path": "string",
+    "content": "string"
+  }
+  ```
+- **Example Request**:
+  ```json
+  { "jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": { "name": "read_file", "arguments": { "path": "package.json" } } }
+  ```
+- **Example Response**:
+  ```json
+  {
+    "jsonrpc": "2.0",
+    "id": 3,
+    "result": {
+      "content": [{
+        "type": "text",
+        "text": "{\"path\":\"package.json\",\"content\":\"{\\n  \\\"name\\\": \\\"forge-agent\\\"\\n}\\n\"}"
+      }]
+    }
+  }
+  ```
+
+### 4. `search_files`
+- **Description**: Search text files in the workspace for a case-insensitive literal string. Skips generated and sensitive files.
+- **Input Schema**:
+  ```json
+  {
+    "query": { "type": "string", "min": 1, "max": 200, "description": "Literal text substring to find" },
+    "path": { "type": "string", "optional": true, "description": "Workspace-relative directory to search" },
+    "max_results": { "type": "integer", "min": 1, "max": 100, "default": 50, "description": "Maximum matching lines to return" }
+  }
+  ```
+- **Output Structure**:
+  ```json
+  {
+    "matches": [
+      {
+        "path": "string",
+        "line": "number",
+        "text": "string"
+      }
+    ],
+    "truncated": "boolean"
+  }
+  ```
+- **Example Request**:
+  ```json
+  { "jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": { "name": "search_files", "arguments": { "query": "createPermanentMcpServer", "max_results": 1 } } }
+  ```
+- **Example Response**:
+  ```json
+  {
+    "jsonrpc": "2.0",
+    "id": 4,
+    "result": {
+      "content": [{
+        "type": "text",
+        "text": "{\"matches\":[{\"path\":\"src/server.js\",\"line\":485,\"text\":\"async function createPermanentMcpServer({\"}],\"truncated\":true}"
+      }]
+    }
+  }
+  ```
