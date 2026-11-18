@@ -151,6 +151,10 @@ vite.config.ts.timestamp-*
 # Turbo Repo (https://turborepo.dev/)
 .turbo
 
+# Local Forge MCP tokens
+.forge-token
+*.token
+
 # Nx (https://nx.dev/)
 .nx/cache
 .nx/workspace-data
