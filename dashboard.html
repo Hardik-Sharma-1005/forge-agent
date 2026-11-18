@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live MCP Server Dashboard — Forge Agent</title>
+  <style>
+    :root {
+      --bg: #1e1e1e;
+      --card: #252526;
+      --border: #3c3c3c;
+      --text: #cccccc;
+      --text-bright: #ffffff;
+      --accent: #007acc;
+      --green: #4ec9b0;
+      --code-bg: #181818;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 24px;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 14px;
+      margin-bottom: 20px;
+    }
+    h1 { margin: 0; font-size: 1.3rem; color: var(--text-bright); }
+    .badge {
+      background: rgba(78, 201, 176, 0.2);
+      color: var(--green);
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .card h2 { margin-top: 0; font-size: 1.05rem; color: var(--text-bright); }
+    .btn-group { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    button {
+      background: var(--accent);
+      color: #fff;
+      border: 0;
+      padding: 8px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    button:hover { background: #0098ff; }
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      padding: 12px;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-family: Consolas, monospace;
+      font-size: 0.85rem;
+      color: #9cdcfe;
+      max-height: 350px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Forge Agent — Live MCP Workspace Server</h1>
+    <span class="badge" id="live-badge">Checking connection...</span>
+  </div>
+
+  <div class="card">
+    <h2>Server Connection</h2>
+    <p>Endpoint: <code>http://127.0.0.1:8765/mcp</code></p>
+    <div class="btn-group">
+      <button onclick="pingServer()">Check Status</button>
+      <button onclick="runTool('get_workspace_context', {})">get_workspace_context</button>
+      <button onclick="runTool('list_files', { recursive: false, max_results: 15 })">list_files (top level)</button>
+      <button onclick="runTool('read_file', { path: 'README.md' })">read_file (README.md)</button>
+      <button onclick="runTool('search_files', { query: 'Forge' })">search_files ("Forge")</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Live Output</h2>
+    <pre id="output">// Click one of the buttons above to query the live MCP server directly from VS Code.</pre>
+  </div>
+
+  <script>
+    const TOKEN = "d44aaa62923276a67ed613bdbbe4b7fa070ca6150c6cf32d98662f5864bb5a06";
+    const URL = "http://127.0.0.1:8765/mcp";
+
+    async function pingServer() {
+      const out = document.getElementById('output');
+      const badge = document.getElementById('live-badge');
+      out.textContent = "Connecting to MCP server...";
+      try {
+        const res = await fetch(URL, {
+          method: "POST",
+          headers: { "Authorization": "Bearer " + TOKEN, "Content-Type": "application/json" },
+          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} })
+        });
+        const data = await res.json();
+        badge.textContent = "● ONLINE (Port 8765)";
+        badge.style.color = "#4ec9b0";
+        out.textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        badge.textContent = "● OFFLINE";
+        badge.style.color = "#f48771";
+        out.textContent = "Connection error: " + err.message;
+      }
+    }
+
+    async function runTool(name, args) {
+      const out = document.getElementById('output');
+      out.textContent = "Running tool " + name + "...";
+      try {
+        const res = await fetch(URL, {
+          method: "POST",
+          headers: { "Authorization": "Bearer " + TOKEN, "Content-Type": "application/json" },
+          body: JSON.stringify({ jsonrpc: "2.0", id: Date.now(), method: "tools/call", params: { name, arguments: args } })
+        });
+        const data = await res.json();
+        if (data.result && data.result.content && data.result.content[0]) {
+          try {
+            out.textContent = JSON.stringify(JSON.parse(data.result.content[0].text), null, 2);
+          } catch {
+            out.textContent = data.result.content[0].text;
+          }
+        } else {
+          out.textContent = JSON.stringify(data, null, 2);
+        }
+      } catch (err) {
+        out.textContent = "Error: " + err.message;
+      }
+    }
+
+    // Ping on load
+    pingServer();
+  </script>
+</body>
+</html>

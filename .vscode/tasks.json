@@ -1,0 +1,34 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Open Live Server in Browser",
+      "type": "shell",
+      "command": "start http://127.0.0.1:8765/?token=d44aaa62923276a67ed613bdbbe4b7fa070ca6150c6cf32d98662f5864bb5a06",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "never"
+      }
+    },
+    {
+      "label": "Inspect Live Server Tools (JSON-RPC)",
+      "type": "shell",
+      "command": "npm run inspect",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
+    },
+    {
+      "label": "Run All MCP Tests",
+      "type": "shell",
+      "command": "npm test",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    }
+  ]
+}
